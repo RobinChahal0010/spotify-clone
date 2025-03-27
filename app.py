@@ -1,98 +1,69 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
-from flask_sqlalchemy import SQLAlchemy
-from flask_bcrypt import Bcrypt
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-import requests
-import base64
 import os
+import base64
+import requests
+from django.shortcuts import render, redirect
+from django.http import JsonResponse
+from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from django.contrib import messages
+from django.db import models
 from dotenv import load_dotenv
 
-# ✅ Load environment variables
+# Load environment variables
 load_dotenv()
 
-# ✅ Flask app setup
-app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///database.db")
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "supersecretkey")
+# Models
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    email = models.EmailField(unique=True)
 
-# ✅ Database, authentication & encryption setup
-db = SQLAlchemy(app)
-bcrypt = Bcrypt(app)
-login_manager = LoginManager(app)
-login_manager.login_view = "login"
+# Views
 
-# ✅ User Model
-class User(db.Model, UserMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(20), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(60), nullable=False)
+def home(request):
+    return render(request, "home.html", {"user": request.user})
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-# 🎵 **Home Route**
-@app.route("/")
-def home():
-    return render_template("home.html", user=current_user)
-
-# 🔐 **Signup Route**
-@app.route("/signup", methods=["GET", "POST"])
-def signup():
+def signup(request):
     if request.method == "POST":
-        username = request.form["username"]
-        email = request.form["email"]
-        password = bcrypt.generate_password_hash(request.form["password"]).decode("utf-8")
+        username = request.POST["username"]
+        email = request.POST["email"]
+        password = request.POST["password"]
+        if User.objects.filter(email=email).exists():
+            messages.error(request, "User already exists. Try logging in.")
+            return redirect("login")
+        user = User.objects.create_user(username=username, email=email, password=password)
+        Profile.objects.create(user=user, email=email)
+        messages.success(request, "Signup successful! Please log in.")
+        return redirect("login")
+    return render(request, "signup.html")
 
-        # ✅ Check if user exists
-        existing_user = User.query.filter_by(email=email).first()
-        if existing_user:
-            flash("User already exists. Try logging in.", "danger")
-            return redirect(url_for("login"))
-
-        # ✅ Save user to DB
-        user = User(username=username, email=email, password=password)
-        db.session.add(user)
-        db.session.commit()
-
-        flash("Signup successful! Please log in.", "success")
-        return redirect(url_for("login"))
-
-    return render_template("signup.html")
-
-# 🔐 **Login Route**
-@app.route("/login", methods=["GET", "POST"])
-def login():
+def login_view(request):
     if request.method == "POST":
-        email = request.form["email"]
-        password = request.form["password"]
+        email = request.POST["email"]
+        password = request.POST["password"]
+        try:
+            user = User.objects.get(email=email)
+            user = authenticate(request, username=user.username, password=password)
+            if user:
+                login(request, user)
+                messages.success(request, "Login successful!")
+                return redirect("dashboard")
+        except User.DoesNotExist:
+            pass
+        messages.error(request, "Invalid credentials, please try again.")
+    return render(request, "login.html")
 
-        user = User.query.filter_by(email=email).first()
-        if user and bcrypt.check_password_hash(user.password, password):
-            login_user(user)
-            flash("Login successful!", "success")
-            return redirect(url_for("dashboard"))
-        else:
-            flash("Invalid credentials, please try again.", "danger")
-
-    return render_template("login.html")
-
-# 🏠 **Dashboard (For Logged-in Users)**
-@app.route("/dashboard")
 @login_required
-def dashboard():
-    return render_template("dashboard.html", user=current_user)
+def dashboard(request):
+    return render(request, "dashboard.html", {"user": request.user})
 
-# 🚪 **Logout Route**
-@app.route("/logout")
 @login_required
-def logout():
-    logout_user()
-    flash("Logged out successfully!", "info")
-    return redirect(url_for("login"))
+def logout_view(request):
+    logout(request)
+    messages.info(request, "Logged out successfully!")
+    return redirect("login")
 
-# ✅ **Spotify API Integration**
+# Spotify API Integration
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 
@@ -101,67 +72,54 @@ def get_spotify_token():
     data = {"grant_type": "client_credentials"}
     auth_header = base64.b64encode(f"{SPOTIFY_CLIENT_ID}:{SPOTIFY_CLIENT_SECRET}".encode()).decode()
     headers = {"Authorization": f"Basic {auth_header}", "Content-Type": "application/x-www-form-urlencoded"}
-
     response = requests.post(url, data=data, headers=headers)
-    token_data = response.json()
-    return token_data.get("access_token")
+    return response.json().get("access_token")
 
 def get_popular_artists(limit=4):
     token = get_spotify_token()
     if not token:
         return []
-
     url = "https://api.spotify.com/v1/browse/new-releases"
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(url, headers=headers)
-
     if response.status_code == 200:
         data = response.json().get("albums", {}).get("items", [])
         return [{"name": album["artists"][0]["name"], "image": album["images"][0]["url"]} for album in data[:limit]]
-
     return []
 
-@app.route("/popular_artists", methods=["GET"])
-def popular_artists_route():
-    return jsonify({"artists": get_popular_artists()})
+def popular_artists_route(request):
+    return JsonResponse({"artists": get_popular_artists()})
 
-@app.route("/all_artists", methods=["GET"])
-def all_artists_route():
-    return render_template("all_artists.html", artists=get_popular_artists(limit=20))
+def all_artists_route(request):
+    return render(request, "all_artists.html", {"artists": get_popular_artists(limit=20)})
 
-# ✅ **Audius API Integration**
+# Audius API Integration
 AUDIUS_API_URL = os.getenv("AUDIUS_API_URL", "https://discoveryprovider.audius.co")
 
 def get_trending_songs(limit=4):
     url = f"{AUDIUS_API_URL}/v1/tracks/trending"
     response = requests.get(url)
-
     if response.status_code == 200:
         data = response.json().get("data", [])
         return [{"title": song["title"], "artist": song["user"]["name"], "artwork": song.get("artwork", {}).get("1000x1000", "static/default.jpg")} for song in data[:limit]]
-
     return []
 
-@app.route("/trending_songs", methods=["GET"])
-def trending_songs_route():
-    return jsonify({"songs": get_trending_songs()})
+def trending_songs_route(request):
+    return JsonResponse({"songs": get_trending_songs()})
 
-@app.route("/all_songs", methods=["GET"])
-def all_songs_route():
-    return render_template("all_songs.html", songs=get_trending_songs(limit=20))
+def all_songs_route(request):
+    return render(request, "all_songs.html", {"songs": get_trending_songs(limit=20)})
 
-# ✅ **Error Handling**
-@app.errorhandler(404)
-def page_not_found(error):
-    return render_template("404.html"), 404
+# Error Handling
+from django.conf.urls import handler404, handler500
 
-@app.errorhandler(500)
-def server_error(error):
-    return render_template("500.html"), 500
+def page_not_found(request, exception):
+    return render(request, "404.html", status=404)
 
-# ✅ **Initialize Database**
-if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-    app.run(debug=True)
+def server_error(request):
+    return render(request, "500.html", status=500)
+
+handler404 = "myapp.views.page_not_found"
+handler500 = "myapp.views.server_error"
+
 
