@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>All Trending Songs</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            background-color: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #all-songs {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .song-card {
+            width: 180px;
+            background: #181818;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 8px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        .song-card:hover {
+            transform: scale(1.05);
+            cursor: pointer;
+        }
+
+        .song-card img {
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        .song-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        .song-artist {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 8px;
+        }
+
+        .play-btn {
+            background-color: #1db954;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        audio {
+            width: 100%;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            background: #111;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>All Trending Songs</h1>
+
+    <div id="all-songs">
+        {% for song in songs %}
+        <div class="song-card">
+            <a href="{{ url_for('song_metadata', song_id=song.id) }}">
+                <img src="{{ song.artwork }}" alt="Artwork">
+            </a>
+            <p class="song-title">{{ song.title }}</p>
+            <p class="song-artist">{{ song.artist }}</p>
+            <button class="play-btn" onclick="playSong('{{ song.stream_url }}')">▶ Play</button>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Global Audio Player -->
+    <audio id="player" controls></audio>
+
+    <script>
+        function playSong(url) {
+            const player = document.getElementById("player");
+            player.src = url;
+            player.play();
+        }
+    </script>
+</body>
+</html>

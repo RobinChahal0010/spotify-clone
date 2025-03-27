@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>All Popular Artists</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #121212;
+            color: #fff;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .artist-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+        .artist-card {
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            overflow: hidden;
+            text-align: center;
+            padding: 15px;
+            transition: transform 0.2s ease;
+        }
+        .artist-card:hover {
+            transform: scale(1.05);
+        }
+        .artist-card img {
+            width: 100%;
+            border-radius: 50%;
+            margin-bottom: 10px;
+        }
+        a {
+            color: #1db954;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>All Popular Artists</h1>
+    <div class="artist-grid">
+        {% for artist in artists %}
+        <div class="artist-card">
+            <a href="{{ url_for('artist_metadata' , artist_id=artist.id) }}">
+                <img src="{{ artist.image }}" alt="{{ artist.name }}">
+                <h3>{{ artist.name }}</h3>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

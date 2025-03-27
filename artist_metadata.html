@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ artist.name }} - Artist Info</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #121212;
+            color: #fff;
+            padding: 40px;
+        }
+        .artist-container {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+        img {
+            width: 250px;
+            border-radius: 50%;
+        }
+        .info {
+            max-width: 500px;
+        }
+        h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        .meta {
+            margin: 10px 0;
+        }
+        a {
+            color: #1db954;
+        }
+    </style>
+</head>
+<body>
+    <div class="artist-container">
+        <img src="{{ artist.image }}" alt="{{ artist.name }}">
+        <div class="info">
+            <h1>{{ artist.name }}</h1>
+            <p class="meta"><strong>Genres:</strong> {{ artist.genres | join(', ') }}</p>
+            <p class="meta"><strong>Followers:</strong> {{ "{:,}".format(artist.followers) }}</p>
+            <p class="meta"><strong>Popularity:</strong> {{ artist.popularity }}/100</p>
+            <p><a href="{{ artist.spotify_url }}" target="_blank">View on Spotify</a></p>
+        </div>
+    </div>
+</body>
+</html>

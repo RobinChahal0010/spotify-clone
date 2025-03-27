@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Spotify</title>
+    <style>
+        body {
+            background: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 40px;
+        }
+
+        img {
+            width: 300px;
+            border-radius: 12px;
+            box-shadow: 0 0 15px rgba(255,255,255,0.1);
+        }
+
+        audio {
+            margin-top: 20px;
+            width: 60%;
+        }
+    </style>
+</head>
+<body>
+    <h1>{{ song.title }}</h1>
+    <h3>By {{ song.artist }}</h3>
+    <img src="{{ song.artwork }}" alt="{{ song.title }}">
+    <p style="margin-top: 20px;">{{ song.description }}</p>
+
+    <audio controls>
+        <source src="{{ song.stream_url }}" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <br><br>
+    <a href="{{ url_for('all_songs_route') }}" style="color:#1db954;">⬅ Back to All Songs</a>
+</body>
+</html>
